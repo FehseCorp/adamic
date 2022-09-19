@@ -1,6 +1,7 @@
 # adamic
 
-A Particle project named adamic
+A Particle project named adamic - source code to send data from your particle argon using the adamic microphone.
+Also server side to receive the data and a separate script (sr.js) to send it to Azure speech services.
 
 ## Welcome to your project!
 
