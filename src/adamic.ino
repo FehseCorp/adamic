@@ -15,7 +15,10 @@ PDMGen3Static<1024> pdmDecoder(A2, A3);
 const unsigned long MAX_RECORDING_LENGTH_MS = 30000;
 
 // This is the IP Address and port that the audioServer.js node server is running on.
-IPAddress serverAddr = IPAddress(192,168,2,95);
+//IPAddress serverAddr = IPAddress(192,168,2,95);
+IPAddress serverAddr = IPAddress(20,231,201,2);
+
+//20.231.201.2
 int serverPort = 7123;
 
 TCPClient client;
