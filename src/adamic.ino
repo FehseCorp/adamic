@@ -3,6 +3,7 @@
 
 SYSTEM_THREAD(ENABLED);
 
+int textHandler(String data); // forward declaration
 SerialLogHandler logHandler;
 
 
@@ -17,6 +18,7 @@ const unsigned long MAX_RECORDING_LENGTH_MS = 30000;
 // This is the IP Address and port that the audioServer.js node server is running on.
 //IPAddress serverAddr = IPAddress(192,168,2,95);
 IPAddress serverAddr = IPAddress(20,231,201,2);
+String textHandlerDNSAddres = "texthandler.eastus.cloudapp.azure.com";
 
 //20.231.201.2
 int serverPort = 7123;
@@ -34,7 +36,8 @@ void buttonHandler(system_event_t event, int data);
 void setup() {
 	// Register handler to handle clicking on the SETUP button
 	System.on(button_click, buttonHandler);
-
+	// Register a particle function to handle the text
+	Particle.function("receiveText", textHandler);
 	// Blue D7 LED indicates recording is on
 	pinMode(D7, OUTPUT);
 
@@ -59,11 +62,11 @@ void setup() {
 	if (err) {
 		Log.error("pdmDecoder.start err=%lu", err);
 	}
-
 }
 
 void loop() {
 	uint8_t *samples;
+	
 
 	switch(state) {
 	case STATE_WAITING:
@@ -73,7 +76,7 @@ void loop() {
 
 	case STATE_CONNECT:
 		// Ready to connect to the server via TCP
-		if (client.connect(serverAddr, serverPort)) {
+		if (client.connect(textHandlerDNSAddres, serverPort)) {
 			// Connected
 			Log.info("starting");
 
@@ -93,13 +96,9 @@ void loop() {
 
 		if (samples) {
 			size_t numSamples = pdmDecoder.getSamplesPerBuf();
-
 			client.write(samples, numSamples);
-
 			pdmDecoder.doneWithSamples();
 		}
-
-
 		if (millis() - recordingStart >= MAX_RECORDING_LENGTH_MS) {
 			state = STATE_FINISH;
 		}
@@ -114,7 +113,6 @@ void loop() {
 	}
 }
 
-
 // button handler for the SETUP button, used to toggle recording on and off
 void buttonHandler(system_event_t event, int data) {
 	switch(state) {
@@ -128,6 +126,11 @@ void buttonHandler(system_event_t event, int data) {
 	}
 }
 
+int textHandler(String data) {
+	Serial.printlnf("text handler data=%s", data.c_str());
+	Particle.publish("text result:", data, PRIVATE);
+	return 0;
+}
 
 
 

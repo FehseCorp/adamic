@@ -11,6 +11,12 @@ const myArgs = process.argv.slice(2);
 const sdk = require("microsoft-cognitiveservices-speech-sdk");
 const speechConfig = sdk.SpeechConfig.fromSubscription(myArgs[1], "eastus2");
 speechConfig.speechRecognitionLanguage = myArgs[0];
+//Transation
+const speechTranslationConfig = sdk.SpeechTranslationConfig.fromSubscription(myArgs[1], "eastus2");
+speechTranslationConfig.speechRecognitionLanguage = "en-US";
+
+var language = "pt";
+speechTranslationConfig.addTargetLanguage(language);
 
 var fs = require('fs');
 var path = require('path');
@@ -45,20 +51,16 @@ catch(e) {
 // https://gist.github.com/creationix/707146
 net.createServer(function (socket) {
 	console.log('data connection started from ' + socket.remoteAddress);
-	
 	// The server sends a 8-bit byte value for each sample. Javascript doesn't really like
 	// binary values, so we use setEncoding to read each byte of a data as 2 hex digits instead.
 	socket.setEncoding('hex');
-	
 	var outPath = getUniqueOutputPath();
-	
 	var writer = new wav.FileWriter(outPath, wavOpts);
-	
 	socket.on('data', function (data) {
 		// We received data on this connection.
-		// var buf = Buffer.from(data, 'hex');
-		var buf = new Buffer(data, 'hex');
-		
+		var buf = Buffer.from(data, 'hex');
+		//var buf = new Buffer(data, 'hex');
+
 		if (wavOpts.bitDepth == 16) {
 			// The Photon sends up unsigned data for both 8 and 16 bit
 			// The wav file format is unsigned for 8 bit and signed two-complement for 16-bit. Go figure.
@@ -111,10 +113,13 @@ function fromFile(outFile) {
     let audioConfig = sdk.AudioConfig.fromWavFileInput(fs.readFileSync(outFile));
     let speechRecognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
 
+    let translationRecognizer = new sdk.TranslationRecognizer(speechTranslationConfig, audioConfig);
+
     speechRecognizer.recognizeOnceAsync(result => {
         switch (result.reason) {
             case sdk.ResultReason.RecognizedSpeech:
                 console.log(`RECOGNIZED: Text=${result.text}`);
+				textHandler(result.text);
                 break;
             case sdk.ResultReason.NoMatch:
                 console.log("NOMATCH: Speech could not be recognized.");
@@ -132,4 +137,40 @@ function fromFile(outFile) {
         }
         speechRecognizer.close();
     });
+	translationRecognizer.recognizeOnceAsync(result => {
+        switch (result.reason) {
+            case sdk.ResultReason.TranslatedSpeech:
+                console.log(`RECOGNIZED: Text=${result.text}`);
+                console.log("Translated into [" + language + "]: " + result.translations.get(language));
+
+                break;
+            case sdk.ResultReason.NoMatch:
+                console.log("NOMATCH: Speech could not be recognized.");
+                break;
+            case sdk.ResultReason.Canceled:
+                const cancellation = sdk.CancellationDetails.fromResult(result);
+                console.log(`CANCELED: Reason=${cancellation.reason}`);
+
+                if (cancellation.reason == sdk.CancellationReason.Error) {
+                    console.log(`CANCELED: ErrorCode=${cancellation.ErrorCode}`);
+                    console.log(`CANCELED: ErrorDetails=${cancellation.errorDetails}`);
+                    console.log("CANCELED: Did you set the speech resource key and region values?");
+                }
+                break;
+        }
+        translationRecognizer.close();
+    });
+
+}
+
+function textHandler(text) {
+const { exec } = require('child_process');
+var yourscript = exec('bash ./sendParticleData.sh "' + text + '" >/dev/null',
+        (error, stdout, stderr) => {
+            console.log(stdout);
+            console.log(stderr);
+            if (error !== null) {
+                console.log(`exec error: ${error}`);
+            }
+        });
 }
